@@ -1,0 +1,1595 @@
+#Nov 7
+
+##Hypothesis: No difference between the no. of transplants that will be performed in 2012 at UVA & MCV
+##Metrics:No. of transplants at UVA and No. of transplants at MCV. 
+#delta = difference between the two
+#t = years (1988-2011)
+#R = region 11 donors
+#delta(t)=B(0)+B(1)Rt+B(2)E(t-1)+B(3)E(t-2)+W(t)
+#Autoregressive Model# R(t)=phi+B(1)R(t-1)+V(t)
+#Use poisson regression to predict # of kidney transplants at UVA
+
+#Load the data and summarize it
+setwd("/Users/MBP07/Desktop/UVA/Fall 2012/SYS 6021/Transplant Project")
+
+library(boot)
+library(MASS)
+library(forecast)
+
+source("Transplant.plots.R")
+source("PCAplots.R")
+source("princompreg.R")
+source("SPM_Panel.R")
+source("Boot1.R")
+source("Boot2.R")
+source("TSbootfunctions.R")
+source("Transplant1Vis.R")
+source("DemographicFunctions.R")
+
+duke<-read.table("Dukexplant.csv", sep=",", header=T)
+summary(duke)
+mcv<-read.table("MCVxplant.csv", sep=",", header=T)
+summary(mcv)
+unc<-read.table("MCVxplant.csv", sep=",", header=T)
+summary(unc)
+uva<-read.table("UVAxplant.csv", sep=",", header=T)
+summary(uva)
+unc<- read.table("UNCxplant.csv", sep = ",", header = T)
+summary(unc)
+r11xplant<-read.table("R11xplant.csv", sep=",", header=T)
+summary(r11xplant)
+r11donor<-read.table("R11donor.csv", sep=",", header=T)
+summary(r11donor)
+
+uva.pairs(r11xplant)
+
+#How many years of transplant data are there?  How many organs
+summary(r11xplant) # so 1988-2012, 6 types of 2916 organs
+summary(r11donor) #1446 donors
+#Scatterplot matrix for liver TX
+liver<-data.frame(uva$Liver,duke$Liver,mcv$Liver,unc$Liver, r11donor$Liver) 
+uva.pairs(as.matrix(liver)) #duke is almost symmetric
+#duke is most correlated with r11 liver donors
+
+#Scatterplot matrix for kidney TX
+kidney<-data.frame(uva$Kidney[-25],duke$Kidney[-25],mcv$Kidney[-25],unc$Kidney[-25], r11donor$Kidney[-25]) 
+summary(kidney)
+uva.pairs(as.matrix(kidney))
+
+# Note in all the plots that follow we should remove the 25rd observation
+# (2012) since the data were not complete for that year.
+
+par(mfrow  = c(1,2))
+
+# Kidney transplants-DD means deceased donor; LD means living donor
+donortype.plot(cbind(r11xplant$Kidney_DD[-25], r11xplant$Kidney_LD[-25], r11donor$Kidney_DD[-25],r11donor$Kidney_LD[-25]), title = "Kidney")
+
+#Donortype.plot for Liver transplants in r11
+donortype.plot(cbind(r11xplant$Liver_DD[-25], r11xplant$Liver_LD[-25], r11donor$Liver_DD[-25], r11donor$Liver_LD[-25]), title= "Liver")
+par(mfrow = c(1,1))
+par(mfrow  = c(1,2))
+#  region.plot for Kidney transplants
+region.plot(cbind(r11xplant$Kidney[-25], r11donor$Kidney[-25], uva$Kidney[-25], unc$Kidney[-25], mcv$Kidney[-25], duke$Kidney[-25]), title = "Kidney") 
+
+# region.plot for liver tx
+region.plot(cbind(r11xplant$Liver[-25], r11donor$Liver[-25], uva$Liver[-25], unc$Liver[-25], mcv$Liver[-25], duke$Liver[-25]), title = "Liver") #MCV, UVA most
+par(mfrow = c(1,1))
+#this stuff changes every year
+
+#center.plot for Liver transplants
+par(mfrow  = c(1,2))
+center.plot(cbind( uva$Liver[-25], unc$Liver[-25], mcv$Liver[-25], duke$Liver[-25]), title = "Liver")
+#center.plot for Kidney tx
+center.plot(cbind( uva$Kidney[-25], unc$Kidney[-25], mcv$Kidney[-25], duke$Kidney[-25]), title = "Kidney")
+par(mfrow = c(1,1))
+
+sum(uva$Liver[14:24])
+sum(unc$Liver[14:24])
+sum(mcv$Liver[14:24])
+sum(duke$Liver[14:24])
+
+sum(uva$Kidney[14:24])
+sum(unc$Kidney[14:24])
+sum(mcv$Kidney[14:24])
+sum(duke$Kidney[14:24])
+#Nov 12
+#***************************************************************
+#
+#  	  Transplant Center 
+#	  Bootstrapping 1
+#
+#***************************************************************
+
+
+#***************************************************************
+#
+# Bootstrap the differences for KIDNEY
+#
+#***************************************************************
+
+# UVa-MCV Differences in Kidney Transplants 
+uva.kidney<-uva$Kidney
+mcv.kidney<-mcv$Kidney
+
+par(mfrow = c(2,2))
+hist(uva$Kidney)
+hist(mcv$Kidney)
+hist(duke$Kidney)
+par(mfrow = c(1,1))
+
+#UVA-Duke Difference in Kidney Transplants
+uva.kidney<-uva$Kidney
+duke.kidney<-duke$Kidney
+
+##compute the difference between uva kidney transplants and mcv kidney transplants from 1988 to 2011
+kid.diff1<-ts(uva.kidney-mcv.kidney,1988,2011)
+
+##compute the difference between uva kidney transplants and duke kidney transplants from 1988 to 2011
+kid.diff2<-ts(uva.kidney-duke.kidney,1988,2011)
+
+# perform a paired t-test for UVA and MCV
+t.test(uva.kidney, mcv.kidney,paired=T)
+
+# perform a paired t-test for UVA and Duke
+t.test(uva.kidney, duke.kidney,paired=T)
+
+##what are the results?
+# p-value=0.09155
+# there is not a signficant difference between uva and mcv
+
+# plot the differences:
+ts.plot(kid.diff1,ylab='UVa-MCV',main = "Difference in Number of Transplants, UVA-MCV")
+ts.plot(kid.diff2,ylab='UVa-Duke',main = "Difference in Number of Transplants, UVA-Duke")
+
+#Bootstrap the differences of the means 
+#we need to pass the mean statistic through the boot function in order for this to work
+bs.mean<-function(x,i)
+{
+  return(mean(x[i]))
+}
+
+##Bootstrap mean differences - syntax: boot(data= , statistic= , R= ) where R = number of replications, statistic=bs.mean
+bs.kid.diff1<-boot(kid.diff1,bs.mean,R=2000)
+bs.kid.diff2<-boot(kid.diff2, bs.mean, R=2000)
+
+##view the results 
+bs.kid.diff1
+bs.kid.diff2
+
+##plot the bootstrap results.  what do you observe?
+plot(bs.kid.diff1,index=1, main = "Bootstrapped Difference in Means Between UVa and MCV") 
+plot(bs.kid.diff2,index=1, main = "Bootstrapped Difference in Means Between UVa and Duke") 
+
+# Distribution is centered around a negative mean, QQ plot looks good
+
+##find the confidence intervals for bs.kid.diff using bca and percentile
+boot.ci(bs.kid.diff1,0.95,type=c('bca','perc'))
+boot.ci(bs.kid.diff2,0.95,type=c('bca','perc'))
+
+
+#*********************Liver transplants between UVA & Duke**********#
+##interpret results
+
+# UVa-Duke Differences in Liver Transplants 
+uva.liver<-uva$Liver
+duke.liver<-duke$Liver
+mcv.liver<-mcv$Liver
+
+##compute the difference between uva kidney transplants and mcv kidney transplants from 1988 to 2011
+liv.diff1<-ts(uva.liver-mcv.liver,1988,2011)
+liv.diff2<-ts(uva.liver-duke.liver,1988,2011)
+
+# perform a paired t-test
+t.test(uva.liver, mcv.liver,paired=T)
+t.test(uva.liver, duke.liver,paired=T)
+
+##what are the results?
+# p-value=0.04902
+# there is a signficant difference between uva and duke
+
+# plot the differences:
+ts.plot(liv.diff1,ylab='UVa-MCV',main = "Difference in Number of Transplants, UVA-MCV") 
+ts.plot(liv.diff2,ylab='UVa-Duke',main = "Difference in Number of Transplants, UVA-Duke") 
+
+#Bootstrap the differences of the means 
+bs.mean<-function(x,i)
+{
+  return(mean(x[i]))
+}
+
+##Bootstrap mean differences - syntax: boot(data= , statistic= , R= ) where R = number of replications, statistic=bs.mean
+bs.liv.diff1<-boot(liv.diff1,bs.mean,R=2000)
+bs.liv.diff2<-boot(liv.diff2,bs.mean,R=2000)
+
+##view the results 
+bs.liv.diff1
+bs.liv.diff2
+
+##plot the bootstrap results.  what do you observe?
+plot(bs.liv.diff1,index=1)
+plot(bs.liv.diff2,index=1)
+
+# Distribution is centered around a positve mean, QQ plot looks good
+# implies that UVA has a significant amount more of liver transplants
+
+##find the confidence intervals for bs.kid.diff using bca and percentile
+boot.ci(bs.kid.diff1,0.95,type=c('bca','perc'))
+boot.ci(bs.kid.diff2,0.95,type=c('bca','perc'))
+
+####NOV 14####
+#You don't necessarily want to bootstrap observations...rather, do residuals
+#If the confidence interval contains 0, then it is NOT significant
+#boot function: pass (data, statistic, replications)
+#do at least 1000 replications
+#Step 1: build LM model
+#Step 2: bootstrap with residuals.  bias = original value - expected value
+
+#***************************************************************
+#
+# Part 2- Bootstrap Regression and Time Series
+#
+#***************************************************************
+
+##  Source the bootstrapping functions and load the 'boot' library
+source("TSbootfunctions.R")
+library(boot)
+
+######Kidney Model#######
+
+##  Build a linear model, uva.kid.lm that predicts uva kidney transplants by region 11 kidney donors from 1988-2011 (exclude 2012)
+
+uva.kid.lm<-lm(uva$Kidney[-25]~r11donor$Kidney[-25])
+
+##  Use summary to evaluate the model
+##  Is your model significant?  r11donor$Kidney?
+summary(uva.kid.lm) #The model is significant, and so is the predictor
+
+
+##  Plot diagnostics uva.kid.lm.  What do you examine?
+plot(uva.kid.lm, which=1)
+plot(uva.kid.lm, which=2)
+
+#  Bootstrapping the linear model
+
+##  Get the fitted values from the regression model uva.kid.lm and store in uva.kfit
+##  use the fitted() function with the linear model as the option
+uva.kfit <- fitted(uva.kid.lm)
+
+##  Get the residuals from the regression model uva.kid.lm and store in uva.ke
+##  Hint: use the residuals() function with the linear model as the option
+uva.ke<-residuals(uva.kid.lm)
+
+
+#  Get the regression model for uva.kid.lm- model.matrix()
+uva.mod <- model.matrix(uva.kid.lm)
+
+
+##  Use the RTSB function (from TSbootfunctions.R) to obtain the bootstrap
+##  distribution for the coefficients. This may take a few minutes.
+##	Be patient.	
+
+uva.kid.boot <- RTSB(uva$Kidney[-25], r11donor$Kidney[-25], uva.kfit, uva.ke, uva.mod,2000)
+
+
+##  What are the estimates in uva.kid.boot? compare with summary on original model
+plot(uva.kid.boot)
+
+
+##  Get the 99% CI for uva.kid.boot
+boot.ci(uva.kid.boot,0.99,type=c('bca','perc'))
+
+
+##  Get the 95% CI for uva.kid.boot
+boot.ci(uva.kid.boot,0.95,type=c('bca','perc'))
+
+
+#	Plot the results for the coeffiecient for region 11 donors
+plot(uva.kid.boot, index = 2) 
+
+##  A set of configurable plots for each term
+par(mfrow = c(1,2))
+hist(uva.kid.boot$t[,2], main = "Region 11 Donors",xlab ="Coefficient Values",   col = "steelblue", breaks = 50)
+qqnorm(uva.kid.boot$t[,2])
+qqline(uva.kid.boot$t[,2])
+par(mfrow = c(1,1))
+
+#  Bootstrapping TS
+
+##  Evaluating residual correlation from the model uva.kid.lm
+##  Hint: use the acf() and pcf()
+acf(uva.ke)
+pacf(uva.ke)
+
+
+##  Fit an ar model to the residuals using the yule-walker method
+diff.ar <- ar(uva.kid.lm$residuals, method = "yule-walker") 
+
+##  How many autoregressive terms are needed?
+# 2 autogregressive terms
+
+
+##  Add the ar model of the residuals to regression, linear model.
+uva.kid.lm2<- lm(uva$Kidney[3:24]~r11donor$Kidney[3:24]+ uva.kid.lm$residuals[2:23] + uva.kid.lm$residuals[1:22])
+
+##  Does the summary of the model uva.kid.lm2 still show siginificance for the donor time series #yes
+
+summary(uva.kid.lm2)
+
+#	Bootstrap the above time series model:
+
+##  Get the fitted values from the regression model, store in uva.kfit2
+uva.kid.boot.fit <- fitted(uva.kid.lm2)
+
+
+##  Get the residuals from the regression model, store in uva.ke2
+uva.kid.boot.re<-residuals(uva.kid.lm2)
+
+
+##  Get the regression model, store in uva.mod2
+uva.mod2<-model.matrix(uva.kid.lm2)
+
+##  Use the RTSB function as before on the new model to obtain the bootstrap 
+##	distribution for the coefficients. This may take a few minutes.
+##	Be patient.	Call it uva.kid.boot2
+uva.kid.boot2 <- RTSB(uva$Kidney[3:24], r11donor$Kidney[3:24], uva.kid.boot.fit, uva.kid.boot.re, uva.mod2,2000)
+
+##  What are the estimates in uva.kid.boot2?
+uva.kid.boot2
+
+##  Plot the results for the coeffiecient for region 11 donors
+plot(uva.kid.boot2, index = 2)	
+
+##  Plot the results for the coeffiecient for time series components
+plot(uva.kid.boot2, index = 3)
+plot(uva.kid.boot2, index = 4)
+
+###NOV 19###
+#Bootstrapping used when you don't have enough data, or have a weird distribution
+#Can bootstrap in two ways: observations or residuals
+#Goal: increase number of transplants at UVA
+#Ethnicity, etc. are factors
+
+#***************************************************************
+#
+#      Lecture 22: Simulation & Bootstrapping
+#     	 A Case Study: Transplant Center
+#   		   
+#***************************************************************
+
+
+#***************************************************************
+#
+# Part 1: Basic Statistics (15 mins)
+#
+#***************************************************************
+
+#Step 1.1 Get the distribution of uva$Liver, uva$Liver_DD, uva$Liver_LD. What do you observe? On average, how many liver transplants are performed at UVa per year? What about DD liver transplants and LD liver transplants?
+mean(uva$Liver) #46 per year
+hist(uva$Liver)
+mean(uva$Liver_DD) #43 per year
+hist(uva$Liver_DD)
+mean(uva$Liver_LD) #3 per year
+hist(uva$Liver_LD)
+
+
+#Step 1.2 Get the distribution of r11donor$Liver, r11donor$Liver_DD, r11donor$Liver_LD. What do you observe? On average, how many liver donors are there in R11 per year? What about DD liver donors and LD liver donors?
+par(mfrow = c(1,3))
+hist(r11donor$Liver)
+mean(r11donor$Liver) #534 per year
+hist(r11donor$Liver_DD)
+mean(r11donor$Liver_DD) #521 per year
+hist(r11donor$Liver_LD)
+mean(r11donor$Liver_LD) #13 per year
+par(mfrow = c(1,1))
+
+par(mfrow = c(1,3))
+hist(r11donor$Kidney)
+mean(r11donor$Kidney) #534 per year
+hist(r11donor$Kidney_DD)
+mean(r11donor$Kidney_DD) #521 per year
+hist(r11donor$Kidney_LD)
+mean(r11donor$Kidney_LD) #13 per year
+par(mfrow = c(1,1))
+
+#Step 1.3 In step 1.1, we get the mean of uva$Liver_DD and uva$Liver_LD. What are the standard errors of the means? What're the 95% confidence intervals? Use bootstrapping to answer this question.
+bs.mean<-function(x,i)
+{
+  return(mean(x[i]))
+}
+
+bs.uva.kidneyDD<-boot(uva$Kidney_DD, bs.mean, R=2000)
+bs.uva.kidneyDD #std error is 4.439
+boot.ci(bs.uva.kidneyDD,0.95,type=c('bca','perc')) #(34.36, 51.84)
+bs.uva.kidneyLD<-boot(uva$Kidney_LD, bs.mean, R=2000)
+bs.uva.kidneyLD #std error is 0652
+boot.ci(bs.uva.kidneyLD,0.95,type=c('bca','perc')) #(1.32, 3.96)
+
+
+bs.uva.liverDD<-boot(uva$Liver_DD, bs.mean, R=2000)
+bs.uva.liverDD #std error is 4.439
+boot.ci(bs.uva.liverDD,0.95,type=c('bca','perc')) #(34.36, 51.84)
+bs.uva.liverLD<-boot(uva$Liver_LD, bs.mean, R=2000)
+bs.uva.liverLD #std error is 0652
+boot.ci(bs.uva.liverLD,0.95,type=c('bca','perc')) #(1.32, 3.96)
+
+#Step 1.4 Use bootstrapping to test the hypothesis: there are more deceased liver donors than living liver donors in R11.
+boot.uva.kidney.diff<-boot(r11donor$Kidney_DD-r11donor$Kidney_LD, bs.mean, R=2000)
+boot.ci(boot.uva.kidney.diff, 0.95, type=c('bca','perc')) #Significant
+
+boot.uva.liver.diff<-boot(r11donor$Liver_DD-r11donor$Liver_LD, bs.mean, R=2000)
+boot.ci(boot.uva.liver.diff, 0.95, type=c('bca','perc')) #Interval does not include 0 so there is a SIGNIFICANT DIFFERENCE, accept hypothesis
+
+
+
+#Step 1.5 Get the scatter plot matrix with the above 6 variables. Describe what you observe. You can use either uva.pairs() {source("SPM_Panel.R")} or pairs().
+source("SPM_Panel.R")
+
+kidstuff<-data.frame(uva$Kidney, mcv$Kidney, duke$Kidney, unc$Kidney, r11donor$Kidney)
+uva.pairs(kidstuff)
+
+livstuff<-data.frame(uva$Liver, mcv$Liver, duke$Liver, unc$Liver, r11donor$Liver)
+uva.pairs(livstuff)
+
+#Step 1.6* Compare the performance of UVa with MCV
+boot.centers.liver.diff<-boot(uva$Liver-mcv$Liver, bs.mean, R=2000)
+boot.ci(boot.centers.liver.diff, 0.95, type=c('bca','perc')) #Not a significant diff
+
+boot.centers.kidney.diff<-boot(uva$Kidney-mcv$Kidney, bs.mean, R=2000)
+boot.ci(boot.centers.kidney.diff, 0.95, type=c('bca','perc')) #Not a significant diff
+
+boot.centers.liver.diff<-boot(uva$Liver-duke$Liver, bs.mean, R=2000)
+boot.ci(boot.centers.liver.diff, 0.95, type=c('bca','perc')) #Not a significant diff
+
+boot.centers.kidney.diff<-boot(uva$Kidney-duke$Kidney, bs.mean, R=2000)
+boot.ci(boot.centers.kidney.diff, 0.95, type=c('bca','perc')) #A significant diff
+
+#***************************************************************
+#
+# Part 2: Linear Regression Models (10 mins)
+#
+#***************************************************************
+#Step 2.1 Build a linear model: uva$Liver=b0+b1*r11donor$Liver+e. Call it uva.liver.lm.
+#   	   Analyze the result: R^2, model utility test, t-tests, etc.
+uva.liver.lm<-lm(uva$Liver[-25]~r11donor$Liver[-25])
+summary(uva.liver.lm) #Adj R^2 is 0.3, predictor is significant (0.0033), p-value is 0.0033, significant model
+
+#Step 2.2 Generate the diagnostic plots. Do you see any problem?
+plot(uva.liver.lm) #QQ Plot is wack
+
+#Step 2.3 Estimate the model with bootstrapping (by residuals). Is b1 significant?
+#    Get the fitted values from the regression model
+liver.fit<-fitted(uva.liver.lm)
+#    Get the residuals from the regression model
+liver.re<-residuals(uva.liver.lm)
+#    Get the regression model
+liver.est<-model.matrix(uva.liver.lm)
+
+#   Bootstrapping LM
+uva.liver.boot <- RTSB(uva$Liver[-25], r11donor$Liver[-25], liver.fit, liver.re, liver.est,2000)
+
+#    95% CI of r11donor
+boot.ci(uva.liver.boot, index=2, type=c('bca', 'perc')) #so b1 is significant
+
+#    Distribution of b1
+plot(uva.liver.boot, index=2) #normal around 0.06 mean
+AIC(uva.liver.lm)
+
+
+#Step 2.4* What about MCV? Repeat the above steps and compare the coefficients. 
+mcv.liver.lm<-lm(mcv$Liver[-25]~r11donor$Liver[-25])
+summary(mcv.liver.lm) #Adj R^2 is 0.4374, predictor is significant (0.000259), p-value is 0.0002, significant model
+plot(mcv.liver.lm) #residuals vs fitted has pattern, QQ plot is bad at top quantile
+mcv.liver.fit<-fitted(mcv.liver.lm)
+mcv.liver.re<-residuals(mcv.liver.lm)
+mcv.liver.est<-model.matrix(mcv.liver.lm)
+mcv.liver.boot<-RTSB(mcv$Liver[-25], r11donor$Liver[-25], mcv.liver.fit, mcv.liver.re, mcv.liver.est, 2000)
+boot.ci(mcv.liver.boot, index=2, type=c('bca','perc')) #b1 is significant again
+plot(mcv.liver.boot, index=2) #Normal around 0.04 mean
+
+
+###KIDNEY###
+
+#Step 2.1 Build a linear model: uva$Liver=b0+b1*r11donor$Liver+e. Call it uva.liver.lm.
+#   	   Analyze the result: R^2, model utility test, t-tests, etc.
+uva.kidney.lm<-lm(uva$Kidney[-25]~r11donor$Kidney[-25])
+summary(uva.kidney.lm) #Adj R^2 is 0.3, predictor is significant (0.0033), p-value is 0.0033, significant model
+
+#Step 2.2 Generate the diagnostic plots. Do you see any problem?
+plot(uva.kidney.lm) #QQ Plot is wack
+
+#Step 2.3 Estimate the model with bootstrapping (by residuals). Is b1 significant?
+#    Get the fitted values from the regression model
+kidney.fit<-fitted(uva.kidney.lm)
+#    Get the residuals from the regression model
+kidney.re<-residuals(uva.kidney.lm)
+#    Get the regression model
+kidney.est<-model.matrix(uva.kidney.lm)
+
+#   Bootstrapping LM
+uva.kidney.boot <- RTSB(uva$Kidney[-25], r11donor$Kidney[-25], kidney.fit, kidney.re, kidney.est,2000)
+
+#    95% CI of r11donor
+boot.ci(uva.kidney.boot, index=2, type=c('bca', 'perc')) #so b1 is significant
+
+#    Distribution of b1
+plot(uva.kidney.boot, index=2) #normal around 0.06 mean
+
+
+#Step 2.4* What about MCV? Repeat the above steps and compare the coefficients. 
+mcv.kidney.lm<-lm(mcv$Kidney[-25]~r11donor$Kidney[-25])
+summary(mcv.kidney.lm) #Adj R^2 is .82, predictor is significant (0.000259), p-value is 0.0002, significant model
+plot(mcv.kidney.lm) #residuals vs fitted has pattern, QQ plot is bad at top quantile
+mcv.kidney.fit<-fitted(mcv.kidney.lm)
+mcv.kidney.re<-residuals(mcv.kidney.lm)
+mcv.kidney.est<-model.matrix(mcv.kidney.lm)
+mcv.kidney.boot<-RTSB(mcv$Kidney[-25], r11donor$Kidney[-25], mcv.kidney.fit, mcv.kidney.re, mcv.kidney.est, 2000)
+boot.ci(mcv.kidney.boot, index=2, type=c('bca','perc')) #b1 is significant again
+plot(mcv.kidney.boot, index=2) #Normal around 0.04 mean
+
+#***************************************************************
+#
+# Part 3: Time Series Models (20 mins)
+#
+#***************************************************************
+###LIVER###
+
+#Step 3.1 Generate the ACF and PACF plots of the residuals from uva.liver.lm. What's your conclusion?  
+acf(liver.re) #exp decay
+pacf(liver.re) #one autoregressor
+
+#Step 3.2 Based on the above ACF and PACF plots, what time series do you suggest to model the residuals?
+#    Fit an ar model to the residuals
+model.ar<-ar(uva.liver.lm$residuals, method='yule-walker') 
+
+##For practice fit a model with 2 autoregressor
+
+
+#Step 3.3 Let's use AR(1) to model the residuals. Add the AR(1) model of the residuals to regression linear model. Call this model uva.liver.ts. Analyze the regression results
+uva.liver.lmar1<- lm(uva$Liver[2:24]~r11donor$Liver[2:24]+ uva.liver.lm$residuals[1:23]) #2-24 b/c one autoregressor, 1:23 is for lag
+uva.liver.lmar2<- lm(uva$Liver[3:24]~r11donor$Liver[3:24]+ uva.liver.lm$residuals[2:23] + uva.liver.lm$residuals[1:22])
+summary(uva.liver.lmar1)
+AIC(uva.liver.lmar1)
+BIC(uva.liver.lmar1)
+summary(uva.liver.lmar2)
+AIC(uva.liver.lmar2)
+BIC(uva.liver.lmar2)
+uva.liver.ts<- lm(uva$Liver[2:24]~r11donor$Liver[2:24]+ uva.liver.lm$residuals[1:23])
+
+
+#Generate the diagnostic plots for uva.liver.ts
+par(mfrow=c(2,2))
+plot(uva.liver.ts)
+par(mfrow=c(1,1))
+
+
+#Step 3.4 Bootstrap the above time series model (uva.liver.ts). Are the coefficients significant?
+#    Get the fitted values from the regression model
+model.ar.fit<-fitted(uva.liver.ts)
+#    Get the residuals from the regression model
+model.ar.re<-residuals(uva.liver.ts)
+#    Get the regression model
+model.ar.est<-model.matrix(uva.liver.ts)
+#     Use the RTSB function to obtain the bootstrap
+model.ar.boot<-RTSB(uva$Liver[2:24],r11donor$Liver[2:24],model.ar.fit,model.ar.re,model.ar.est, 2000)	
+#     The estimates
+plot(model.ar.boot)
+#    Plot the results for the coeffiecient for region 11 donors
+
+#    Plot the results for the coeffiecient for time series components
+
+###KIDNEY###
+
+
+#Step 3.1 Generate the ACF and PACF plots of the residuals from uva.liver.lm. What's your conclusion?  
+acf(kidney.re) #exp decay
+pacf(kidney.re) #one autoregressor
+
+#Step 3.2 Based on the above ACF and PACF plots, what time series do you suggest to model the residuals?
+#    Fit an ar model to the residuals
+model.ark<-ar(uva.kidney.lm$residuals, method='yule-walker') 
+
+##For practice fit a model with 2 autoregressor
+
+
+#Step 3.3 Let's use AR(1) to model the residuals. Add the AR(1) model of the residuals to regression linear model. Call this model uva.liver.ts. Analyze the regression results
+uva.kidney.kmar1<- lm(uva$Kidney[2:24]~r11donor$Kidney[2:24]+ uva.kidney.lm$residuals[1:23]) #2-24 b/c one autoregressor, 1:23 is for lag
+uva.kidney.kmar2<- lm(uva$Kidney[3:24]~r11donor$Kidney[3:24]+ uva.kidney.lm$residuals[2:23] + uva.kidney.lm$residuals[1:22])
+summary(uva.kidney.kmar1)
+AIC(uva.kidney.kmar1)
+BIC(uva.kidney.kmar1)
+summary(uva.kidney.kmar2)
+AIC(uva.kidney.kmar2)
+BIC(uva.kidney.kmar2)
+uva.kidney.ts<- lm(uva$Kidney[3:24]~r11donor$Kidney[3:24]+ uva.kidney.lm$residuals[2:23])
+
+
+#Generate the diagnostic plots for uva.kidney.ts
+par(mfrow=c(2,2))
+plot(uva.kidney.ts)
+par(mfrow=c(1,1))
+
+
+#Step 3.4 Bootstrap the above time series model (uva.kidney.ts). Are the coefficients significant?
+#    Get the fitted values from the regression model
+model.kar.fit<-fitted(uva.kidney.ts)
+#    Get the residuals from the regression model
+model.kar.re<-residuals(uva.kidney.ts)
+#    Get the regression model
+model.kar.est<-model.matrix(uva.kidney.ts)
+#     Use the RTSB function to obtain the bootstrap
+model.kar.boot<-RTSB(uva$Kidney[3:24],r11donor$Kidney[3:24],model.kar.fit,model.kar.re,model.kar.est, 2000)	
+#     The estimates
+plot(model.kar.boot)
+#    Plot the results for the coeffiecient for region 11 donors
+
+#    Plot the results for the coeffiecient for time series components
+
+
+#***************************************************************
+#
+# Part 4: UVA - MCV Differences in Liver Transplants (15 mins)
+#
+#***************************************************************
+#Step 4.1 Use t-test to compare the liver transplants performed at UVa and MCV
+
+
+# Step 4.2 Build an AR model to predict the difference in 2011 & 2012
+
+
+# Step 4.3 Bootstrapping the difference
+#    To obtain a bootstrap estimate of the prediction for 2011
+#    use the TSB function in the source file.
+
+#     It takes three arguments:
+#    tsint - the time series
+#    oth.arg - the data for the new estimate
+#    boot.number- number of replications (default=1000)
+
+
+
+
+#*******************************************
+#
+#		Ethnic Diversity Analysis
+#
+#*******************************************
+
+# Form data sets for the kidney transplants
+
+uvaeth <- read.table("UVAethnic.csv", sep = ",", header =T)
+mcveth <- read.table("MCVethnic.csv", sep = ",", header =T)
+dukeeth <- read.table("DukeEthnic.csv", sep = ",", header =T)
+##KIDNEY ETHNIC GROUPS
+uvaketh <- subdata("Kidney", uvaeth)
+
+mcvketh <- subdata("Kidney", mcveth)
+
+dukeketh <- subdata("Kidney", dukeeth)
+
+# Remove year 2012 and combine all ethnic groups other than white 
+# into one category
+
+# UVA
+uvake <- data.frame(uvaketh[-25, "Kidney.W"], Kidney.O = apply(uvaketh[-25,which(colnames(uvaketh) != "Kidney.W")], 1, sum))
+
+# MCV
+mcvke <- data.frame(mcvketh[-25, "Kidney.W"], Kidney.O = apply(mcvketh[-25,which(colnames(mcvketh) != "Kidney.W")], 1, sum))
+
+# Duke
+dukeke <- data.frame(dukeketh[-25, "Kidney.W"], Kidney.O = apply(dukeketh[-25,which(colnames(dukeketh) != "Kidney.W")], 1, sum))
+
+#Patients are transplanted at hospitals according to referrals by doctors
+
+# UVA Ethnic plot
+
+par(mfrow = c(1,3))
+plot(uva$Year[-25], uvake[,1], type = "l", ylim = c(min(uvake), max(uvake)), xlab = "Year", ylab = "No. of Transplants", main = "UVA Transplants by Ethnic Group")
+lines(uva$Year[-25], uvake[,2], col = "green")
+legend(1990, 70, legend = c("White", "Other"), lwd = 2, col = c("black", "green"))
+
+plot(mcv$Year[-25], mcvke[,1], type = "l", ylim = c(min(mcvke), max(mcvke)), xlab = "Year", ylab = "No. of Transplants", main = "MCV Transplants by Ethnic Group")
+lines(mcv$Year[-25], mcvke[,2], col = "green")
+legend(1990, 80, legend = c("White", "Other"), lwd = 2, col = c("black", "green"))
+
+plot(duke$Year[-25], dukeke[,1], type = "l", ylim = c(min(dukeke), max(dukeke)), xlab = "Year", ylab = "No. of Transplants", main = "Duke Transplants by Ethnic Group")
+lines(duke$Year[-25], dukeke[,2], col = "green")
+legend(1990, 60, legend = c("White", "Other"), lwd = 2, col = c("black", "green"))
+par(mfrow = c(1,1))
+
+# Time series plots at the university medical centers
+par(mfrow=c(1,2))
+plot(uva$Year[-25], uvake[,1], type = "l", ylim = c(10, 100), col = "orange", main = "Transplants for Whites", ylab = "Percent", xlab = "Year")
+lines(uva$Year[-25], mcvke[,1], type = "l", col = "purple")
+lines(uva$Year[-25], dukeke[,1], type = "l", col = "blue3")
+
+legend(1990, 100, legend = c("UVA", "MCV", "Duke"), lwd = 2, col = c("orange", "purple", "blue3"))
+
+
+
+plot(uva$Year[-25], uvake[,2], type = "l", ylim = c(0, 100), col = "orange", main = "Transplants for Non-Whites", ylab = "Percent", xlab = "Year")
+lines(uva$Year[-25], mcvke[,2], type = "l", col = "purple")
+lines(uva$Year[-25], dukeke[,2], type = "l", col = "blue3")
+
+legend(1990, 100, legend = c("UVA", "MCV", "Duke"), lwd = 2, col = c("orange", "purple", "blue3"))
+
+##LIVER ETHNIC GROUPS
+uvaleth <- subdata("Liver", uvaeth)
+
+mcvleth <- subdata("Liver", mcveth)
+
+dukeleth <- subdata("Liver", dukeeth)
+
+# Remove year 2012 and combine all ethnic groups other than white 
+# into one category
+
+# UVA
+uvali <- data.frame(uvaleth[-25, "Liver.W"], Liver.O = apply(uvaleth[-25,which(colnames(uvaleth) != "Liver.W")], 1, sum))
+
+# MCV
+mcvli <- data.frame(mcvleth[-25, "Liver.W"], Liver.O = apply(mcvleth[-25,which(colnames(mcvleth) != "Liver.W")], 1, sum))
+
+# Duke
+dukeli <- data.frame(dukeleth[-25, "Liver.W"], Liver.O = apply(dukeleth[-25,which(colnames(dukeleth) != "Liver.W")], 1, sum))
+
+#Patients are transplanted at hospitals according to referrals by doctors
+
+# UVA Ethnic plot
+
+par(mfrow = c(1,3))
+plot(uva$Year[-25], uvali[,1], type = "l", ylim = c(min(uvali), max(uvali)), xlab = "Year", ylab = "No. of Transplants", main = "UVA Liver Transplants by Ethnic Group")
+lines(uva$Year[-25], uvali[,2], col = "green")
+legend(1990, 70, legend = c("White", "Other"), lwd = 2, col = c("black", "green"))
+
+plot(mcv$Year[-25], mcvli[,1], type = "l", ylim = c(min(mcvli), max(mcvli)), xlab = "Year", ylab = "No. of Transplants", main = "MCV Liver Transplants by Ethnic Group")
+lines(mcv$Year[-25], mcvli[,2], col = "green")
+legend(1990, 80, legend = c("White", "Other"), lwd = 2, col = c("black", "green"))
+
+plot(duke$Year[-25], dukeli[,1], type = "l", ylim = c(min(dukeli), max(dukeli)), xlab = "Year", ylab = "No. of Transplants", main = "Duke Liver Transplants by Ethnic Group")
+lines(duke$Year[-25], dukeli[,2], col = "green")
+legend(1990, 60, legend = c("White", "Other"), lwd = 2, col = c("black", "green"))
+par(mfrow = c(1,1))
+
+# Time series plots at the university medical centers
+par(mfrow=c(1,2))
+plot(uva$Year[-25], uvali[,1], type = "l", ylim = c(10, 100), col = "orange", main = "Liver Transplants for Whites", ylab = "Percent", xlab = "Year")
+lines(uva$Year[-25], mcvli[,1], type = "l", col = "purple")
+lines(uva$Year[-25], dukeli[,1], type = "l", col = "blue3")
+
+legend(1990, 100, legend = c("UVA", "MCV", "Duke"), lwd = 2, col = c("orange", "purple", "blue3"))
+
+
+plot(uva$Year[-25], uvali[,2], type = "l", ylim = c(0, 100), col = "orange", main = "Liver Transplants for Non-Whites", ylab = "Percent", xlab = "Year")
+lines(uva$Year[-25], mcvli[,2], type = "l", col = "purple")
+lines(uva$Year[-25], dukeli[,2], type = "l", col = "blue3")
+
+legend(1990, 100, legend = c("UVA", "MCV", "Duke"), lwd = 2, col = c("orange", "purple", "blue3"))
+par(mfrow=c(1,1))
+
+# Remove year 2012 and combine all ethnic groups other than white 
+# into one category
+
+# # UVA
+uvake <- data.frame(uvaketh[-25, "Kidney.W"], Kidney.O = apply(uvaketh[-25,which(colnames(uvaketh) != "Kidney.W")], 1, sum))
+uvali <- data.frame(uvaleth[-25, "Liver.W"], Liver.O = apply(uvaleth[-25,which(colnames(uvaleth) != "Liver.W")], 1, sum))
+
+# # MCV
+mcvke <- data.frame(mcvketh[-25, "Kidney.W"], Kidney.O = apply(mcvketh[-25,which(colnames(mcvketh) != "Kidney.W")], 1, sum))
+mcvli <- data.frame(mcvleth[-25, "Liver.W"], Liver.O = apply(mcvleth[-25,which(colnames(mcvleth) != "Liver.W")], 1, sum))
+
+# # Duke
+dukeke <- data.frame(dukeketh[-25, "Kidney.W"], Kidney.O = apply(dukeketh[-25,which(colnames(dukeketh) != "Kidney.W")], 1, sum))
+dukeli <- data.frame(dukeleth[-25, "Liver.W"], Liver.O = apply(dukeleth[-25,which(colnames(dukeleth) != "Liver.W")], 1, sum))
+
+
+per.nw.kid.uva<-uvake[2]/(uvake[1]+uvake[2])
+per.nw.kid.mcv<-mcvke[2]/(mcvke[1]+mcvke[2])
+per.nw.kid.duke<-dukeke[2]/(dukeke[1]+dukeke[2])
+
+per.nw.li.uva<-uvali[2]/(uvali[1]+uvali[2])
+per.nw.li.mcv<-mcvli[2]/(mcvli[1]+mcvli[2])
+per.nw.li.duke<-dukeli[2]/(dukeli[1]+dukeli[2])
+
+kid.diff.uvamcv.eth<-ts(per.nw.kid.uva-per.nw.kid.mcv,1988,2011)
+kid.diff.uvaduke.eth<-ts(per.nw.kid.uva-per.nw.kid.duke,1988,2011)
+
+li.diff.uvamcv.eth<-ts(per.nw.li.uva-per.nw.li.mcv,1988,2011)
+li.diff.uvaduke.eth<-ts(per.nw.li.uva-per.nw.li.duke,1988,2011)
+
+bs.kid.diff.uvamcv.eth<-boot(kid.diff.uvamcv.eth,bs.mean,R=2000)
+bs.kid.diff.uvaduke.eth<-boot(kid.diff.uvaduke.eth,bs.mean,R=2000)
+
+bs.li.diff.uvamcv.eth<-boot(li.diff.uvamcv.eth,bs.mean,R=2000)
+bs.li.diff.uvaduke.eth<-boot(li.diff.uvaduke.eth,bs.mean,R=2000)
+# ##view the results 
+bs.kid.diff.uvamcv.eth
+bs.kid.diff.uvaduke.eth
+
+bs.li.diff.uvamcv.eth
+bs.li.diff.uvaduke.eth
+
+par(mfrow = c(2,2))
+plot(bs.kid.diff.uvamcv.eth,index=1)
+plot(bs.kid.diff.uvaduke.eth,index=1)
+
+plot(bs.li.diff.uvamcv.eth,index=1)
+plot(bs.li.diff.uvaduke.eth,index=1)
+par(mfrow = c(1,1))
+
+boot.ci(bs.kid.diff.uvamcv.eth,0.95,type=c('bca','perc'))
+boot.ci(bs.kid.diff.uvaduke.eth,0.95,type=c('bca','perc'))
+
+boot.ci(bs.li.diff.uvamcv.eth,0.95,type=c('bca','perc'))
+boot.ci(bs.li.diff.uvaduke.eth,0.95,type=c('bca','perc'))
+
+# ACF analysis
+# What do you conclude from the acf and pacf plots?
+#No difference b/w no of transplants at UVA and MCV (or Duke)
+# There is serial correlation
+
+par(mfrow = c(1,3))
+acf(uvake[,2], main = "ACF UVA NW")
+acf(mcvke[,2], main = "ACF MCV NW")
+acf(dukeke[,2], main = "ACF Duke NW")
+par(mfrow = c(1,1))
+
+par(mfrow = c(1,3))
+pacf(uvake[,2], main = "PACF UVA NW")
+pacf(mcvke[,2], main = "PACF MCV NW")
+pacf(dukeke[,2], main = "PACF Duke NW")
+par(mfrow = c(1,1))
+
+#Classical tests
+
+t.test(uva$Kidney[-25], mcv$Kidney[-25])
+
+acf(uva$Kidney[-25]) #Clear correlation, so t.test is inappropriate
+
+# So use an AR-1 model
+
+# Linear Model of kidney transplants at UVA
+
+uva.kid <- lm(uva$Kidney[-25]~r11donor$Kidney[-25])
+
+summary(uva.kid) #Looks significant
+
+# diagnostics
+
+par(mfrow = c(2,2))
+plot(uva.kid)
+par(mfrow = c(1,1))
+
+par(mfcol = c(1,2))
+
+acf(uva.kid$residuals)
+
+pacf(uva.kid$residuals)
+
+par(mfcol = c(1,1))
+
+# Time series model of residuals
+
+uva.ar <- ar(uva.kid$residuals)
+uva.ar
+plot(uva.ar$aic, type='h')
+
+
+##This is where we FORM OUR MODEL##
+
+# Adding the time series model to the linear model 
+
+uva.kid.e1 <- uva.kid$resid[1:22]
+
+uva.kid.e2 <- uva.kid$resid[2:23]
+
+r11k <- r11donor$Kidney[3:24]
+
+uvakid <- uva$Kidney[3:24]
+
+uvakid.dm <- data.frame(uvakid, r11k, uva.kid.e1, uva.kid.e2)
+
+uva.kid2<- lm(uvakid~., data = uvakid.dm)
+
+
+summary(uva.kid2)
+
+
+# Adding the time series model to the linear model
+
+uva.kid.e <- uva.kid$resid[5:24] - uva.ar$resid[5:24]
+
+r11k <- r11donor$Kidney[5:24]
+
+uvakid <- uva$Kidney[5:24]
+
+uvakid.dm <- cbind(uvakid, r11k, uva.kid.e)
+
+uva.kid2<- lm(uvakid~r11k + uva.kid.e)
+
+
+summary(uva.kid2)
+
+# diagnostics--looks a little better
+### Hourglass residuals reveal heterscedastisity
+
+par(mfrow = c(2,2))
+plot(uva.kid2)
+par(mfrow = c(1,1)
+
+par(mfrow = c(1,2))
+acf(uva.kid2$residuals, main = "ACF")
+pacf(uva.kid2$residuals, main="PACF")
+par(mfrow = c(1,1))
+
+#Y(t)=kidney translplants at UVA at time t; t=1,...,24
+#HYPOTHESIS: No differnce between no. of transplants at UVA and MCV
+##Model 
+#Y(t) =B(0)+B(1)R11(t)+E(t)
+#=B(0)+B(1)R11(t)+phi(0)+phi(1)E(t-1)+phi(2)E(t-2)+W(t)
+#=B'(0)+B(1)R11(t)+phi(1)E(t-1)+phi(2)E(t-2)+W(t)
+
+########################
+#Prediction Forecast
+########################
+# Time series model of R11 donors.
+
+r11.ar <- ar(r11donor$Kidney[-25])
+
+# Forecast of R11 donors
+library(forecast)
+r11.ar.f <- forecast(r11.ar, h = 1)
+
+r11.ar.f	#forecast for the year 26 as 911 kidney donors, CI is 646-1175
+# Creating the new data data fame
+
+uva.kid.nd <- data.frame(r11k = r11.ar.f$mean, uva.kid.e1 = uva.kid2$resid[22], uva.kid.e2 = uva.kid2$resid[21])
+
+
+# Predicting the linear model with the time series
+
+predict(uva.kid2, newdata = uva.kid.nd, se.fit = T)
+
+# Bootstrap prediction
+
+uva.rs.boot <- RFB(uvakid.dm, model = uva.kid2, ndata = uva.kid.nd, num = 2000 )
+
+# Bootstrap plot 
+
+plot(uva.rs.boot, index = 1)
+
+uva.boot.ci <- boot.ci(uva.rs.boot,index =1)
+uva.boot.ci
+
+
+# Plot of predictions for each value of the pw and the confidence intervals
+
+plot(uva$Kidney[-25]~uva$Year[-25], xlim = c(1988, 2013), type = "l", xlab = "Years", ylab = "No. of Kidney", main = "Predicted Numbers of UVA Kidney Transplants")
+
+points(2012, uva.rs.boot$t0[1], pch = 19)
+segments(2012, uva.rs.boot$t0, 2012, uva.boot.ci$percent[4], lty = "dashed" )
+segments(2012, uva.rs.boot$t0, 2012, uva.boot.ci$percent[5], lty = "dashed" )
+
+points(2011.5, uva$Kidney[25])
+
+legend(1990,100, legend = c("Predicted", "Current"), pch = c(19, 1))
+
+
+# How can we combine this with our results from the other centers?
+
+# Simulating the results from R11 and the UVA transplant time series
+
+# Get mean and SD for the time series inputs
+
+# Forecast of R11 donors gives 
+# parameters for the simultion
+
+r11.ar.f <- predict(r11.ar, se.fit = T) 
+r11.ar.f
+
+# Simulating the predictor
+
+uva.rs.sim <- RFBSIM2(uvakid.dm, model = uva.kid2, ndata = uva.kid.nd, num = 2000, predse = data.frame(r11k = c(1, r11.ar.f$se)) )
+
+
+plot(uva.rs.sim, index = 1)
+
+uva.sim.ci <- boot.ci(uva.rs.sim, index = 1)
+
+uva.sim.ci
+
+quantile(uva.rs.sim$t, c(.025, .975))
+
+hist(uva.rs.sim$t)
+
+# Plot of forecasted UVA transplants
+
+plot( uva$Kidney[-25]~uva$Year[-25], xlim = c(1988, 2013), type = "l", xlab = "Years", ylab = "No. of Kidney", main = "Predicted Numbers of UVA Kidney Transplants")
+#Bootstrapped predictions
+points(2012, uva.rs.boot$t0[1], pch = 19)
+segments(2012, uva.rs.boot$t0, 2012, uva.boot.ci$percent[4], lty = "dashed" )
+segments(2012, uva.rs.boot$t0, 2012, uva.boot.ci$percent[5], lty = "dashed" )
+#Simulation predictions
+points(2012.5, median(uva.rs.sim$t), pch = 17)
+segments(2012.5, median(uva.rs.sim$t), 2012.5, uva.sim.ci$percent[4], lty = "dashed" )
+segments(2012.5, median(uva.rs.sim$t), 2012.5, uva.sim.ci$percent[5], lty = "dashed" )
+
+points(2012, uva$Kidney[25]) # Current value
+
+legend(1990,100, legend = c("Bootstrap", "Current", "Simulaltion"), pch = c(19, 1, 17))
+
+
+# Time series model of R11 donors.
+
+r11l.ar <- ar(r11donor$Liver[-25])
+summary(r11l.ar)
+
+# Forecast of R11 donors
+r11l.ar.f <- forecast(r11l.ar, h = 1)
+r11l.ar.f
+r11l.ar.f <- forecast(r11l.ar, h = 2)
+
+# Creating the new data data fame
+
+##uvaliv.nd <- data.frame(r11l = r11l.ar.f$mean,uva.liv.e1 = uva.liv.e1[22],uva.liv.e2 = uva.liv.e2[22],Roan=1)
+uvaliv.nd <- data.frame(r11l = r11l.ar.f$mean,uva.liv.e1 = uva.liv.e1[22],uva.liv.e2 = uva.liv.e2[22],Roan= 2)
+uvaliv1.nd <- data.frame(r11l = r11l.ar.f$mean,uva.liv.e1 = uva.liv.e1[22],uva.liv.e2 = uva.liv.e2[22],Roan=2)
+
+# Predicting the linear model
+
+predict(uva.liv3.2, newdata = uvaliv.nd, se.fit = T)
+predict(uva.liv3.2, newdata = uvaliv1.nd, se.fit = T)
+
+# Bootstrap prediction
+
+uvaliv.boot <- RFB(uvaliv.dm, model = uva.liv3.2, ndata = uvaliv.nd, num = 2000 )
+uvaliv1.boot <- RFB(uvaliv.dm, model = uva.liv3.2, ndata = uvaliv1.nd, num = 2000 )
+
+# Bootstrap plot 
+
+plot(uvaliv.boot, index = 1)
+plot(uvaliv1.boot, index = 1)
+
+# 2 Sided CI
+
+uvaliv.ci <- boot.ci(uvaliv.boot,index =1)
+uvaliv.ci
+
+uvaliv.ci <- boot.ci(uvaliv1.boot,index =1)
+uvaliv.ci
+
+# Plot of predictions for each value of the pw and the confidence intervals
+uvaliv <- uva$Liver[-25]
+
+plot(uvaliv~uva$Year[-25], xlim = c(1988, 2013), ylim = c(0,140), type = "l", xlab = "Years", ylab = "No. of Liver", main = "Predicted No. of UVA Liver Transplants")
+
+points(2012, uvaliv1.boot$t0[1], pch = 19)
+segments(2012, uvaliv1.boot$t0,  2012, uvaliv.ci$percent[4], lty = "dashed" )
+segments(2012, uvaliv1.boot$t0,  2012, uvaliv.ci$percent[5], lty = "dashed" )
+
+points(2011.5, uva$Liver[25])
+
+abline(h = 0)
+
+legend(1990,-40, legend = c("Predicted", "Current"), pch = c(19, 1))
+
+
+#******************************************************************
+#
+# Testing the Difference with MCV
+# Boostrapping & Simulation for the Difference
+#
+#******************************************************************
+
+uvamcv <- uva$Kidney[-25]-mcv$Kidney[-25]
+
+# Linear Model
+
+uvamcv.lm <- lm(uvamcv~r11donor$Kidney[-25])
+
+summary(uvamcv.lm)
+
+# diagnostics
+
+par(mfrow = c(2,2))
+plot(uvamcv.lm)
+par(mfrow = c(1,1))
+
+# Evaluating correlation
+
+par(mfcol = c(1,2))
+
+acf(uvamcv.lm$residuals)
+
+pacf(uvamcv.lm$residuals)
+
+par(mfcol = c(1,1))
+
+# Time series model of residuals
+
+uvamcv.ar <- ar(uvamcv.lm$residuals, method = "mle")
+uvamcv.ar <- ar(uvamcv.lm$residuals)
+uvamcv.ar ##AR at 3
+plot(uvamcv.ar$aic, type = "h")
+
+# Adding the time series model
+# AR(3)
+
+uvamcv.lm.e3 <- uvamcv.lm$resid[1:21]
+uvamcv.lm.e2 <- uvamcv.lm$resid[2:22]
+uvamcv.lm.e1 <- uvamcv.lm$resid[3:23]
+
+r11k <- r11donor$Kidney[4:24]
+
+uvamcv <- uva$Kidney[4:24] - mcv$Kidney[4:24]
+
+uvamcv.dm <- data.frame(uvamcv, r11k, uvamcv.lm.e1,uvamcv.lm.e2, uvamcv.lm.e3)
+
+# Linear model with time series component
+
+uvamcv.lm2<- lm(uvamcv~., data = uvamcv.dm)
+uvamcv.lm2<- lm(uvamcv + 2*max(abs(uvamcv))~., data = uvamcv.dm)
+
+
+summary(uvamcv.lm2)
+
+boxcox(uvamcv.lm2)
+# diagnostics
+
+par(mfrow = c(2,2))
+plot(uvamcv.lm2)
+par(mfrow = c(1,1))
+
+par(mfrow =c(1,2))
+acf(uvamcv.lm2$residuals)
+pacf(uvamcv.lm2$residuals)
+par(mfrow =c(1,1))
+
+# Forecasting R11 
+
+# We need to forecast the r11 donors and the model residuals.
+
+# Time series model of r11 donors
+
+par(mfrow = c(2,1))
+acf(r11donor$Kidney)
+pacf(r11donor$Kidney)
+par(mfrow = c(1,1))
+
+# Time series model of R11 donors.
+
+r11.ar <- ar(r11donor$Kidney[-25])
+
+# Forecast of R11 donors
+
+r11.ar.f <- forecast(r11.ar, h = 1) 
+
+# Creating the new data data fame
+
+uvamcv.nd <- data.frame(r11k = r11.ar.f$mean,uvamcv.lm.e1 = uvamcv.lm.e1[21],uvamcv.lm.e2 = uvamcv.lm.e2[21], uvamcv.lm.e3 = uvamcv.lm.e3[21])
+
+# Predicting the linear model
+
+predict(uvamcv.lm2, newdata = uvamcv.nd, se.fit = T)
+
+
+# Bootstrap prediction
+
+
+uvamcv.boot <- RFB(uvamcv.dm, model = uvamcv.lm2, ndata = uvamcv.nd, num = 2000 )
+
+# Bootstrap plot 
+
+plot(uvamcv.boot, index = 1)
+
+# 2 Sided CI
+
+uvamcv.ci <- boot.ci(uvamcv.boot,index =1)
+uvamcv.ci
+
+
+# Plot of predictions for each value of the pw and the confidence intervals
+uvamcv <- uva$Kidney[-25]-mcv$Kidney[-25]
+
+plot( uvamcv[-25]~uva$Year[-25], xlim = c(1988, 2013), type = "l", xlab = "Years", ylab = "No. of Kidney", main = "Predicted Numbers of UVA Kidney Transplants")
+
+points(2012, uvamcv.boot$t0[1], pch = 19)
+segments(2012, uvamcv.boot$t0, 2012, uvamcv.ci$percent[4], lty = "dashed" )
+segments(2012, uvamcv.boot$t0, 2012, uvamcv.ci$percent[5], lty = "dashed" )
+
+points(2012, uva$Kidney[25])
+
+abline(h = 0)
+
+#***************************************************
+# 
+# Simulation for Improved CI
+#
+#***************************************************
+
+
+# Simulating the results from R11 and the UVA transplant time series
+
+# Get mean and SD for the time series inputs
+
+# Forecast of R11 donors gives 
+# parameters for the simultion
+
+r11.ar.f <- predict(r11.ar, se.fit = T) 
+r11.ar.f
+
+
+# Simulating the predictor to obtain CI
+
+uvamcv.sim <- RFBSIM2(uvamcv.dm, model = uvamcv.lm2, ndata = uvamcv.nd, num = 2000, predse = data.frame(r11k = c(1, r11.ar.f$se)) )
+
+plot(uvamcv.sim, index = 1)
+
+##############
+# 2 sided CI
+
+uvamcv.sim.ci <- boot.ci(uvamcv.sim, index = 1)
+
+uvamcv.sim.ci
+
+quantile(uvamcv.sim$t, c(.025, .975))
+
+hist(uvamcv.sim$t)
+
+########Plot of difference of UVA and MCV in no. of transplants#########
+
+uvamcv <- uva$Kidney[-25]-mcv$Kidney[-25]
+
+plot( uvamcv~uva$Year[-25], xlim = c(1988, 2013), type = "l", xlab = "Years", ylab = "No. of Kidney", main = "Predicted Difference Between UVA and MCV Kidney Transplants")
+
+#Bootstrapped predictions  ###CI's do not bracket zero, so we can reject the Null Hypothesis
+points(2012, uvamcv.boot$t0[1], pch = 19)
+segments(2012, uvamcv.boot$t0, 2012, uvamcv.ci$percent[4], lty = "dashed" )
+segments(2012, uvamcv.boot$t0, 2012, uvamcv.ci$percent[5], lty = "dashed" )
+#Simulation predictions
+points(2012.5, median(uvamcv.sim$t), pch = 17)
+segments(2012.5, median(uvamcv.sim$t), 2012.5, uvamcv.sim.ci$percent[4], lty = "dashed" )
+segments(2012.5, median(uvamcv.sim$t), 2012.5, uvamcv.sim.ci$percent[5], lty = "dashed" )
+
+abline(h = 0)
+points(2011.5, uva$Kidney[25]-mcv$Kidney[25]) # Current value
+
+legend(1990,-40, legend = c("Bootstrap", "Current", "Simulation"), pch = c(19, 1, 17))
+
+#############
+# 1 sided CI
+#############
+# Bootstrapped
+
+uvamcv.ci <- boot.ci(uvamcv.boot,index =1, conf = .9)
+uvamcv.ci
+
+# Simulation 
+
+uvamcv.sim.ci <- boot.ci(uvamcv.sim, index = 1, conf = .9)
+
+uvamcv.sim.ci
+
+# Plot of difference of UVA and MCV in no. of transplants
+##MCV AND DUKE ARE DOING MORE TRANSPLANTS THAN UVA at the .025 confidence interval
+##Recommendation: Find out what MCV is doing that is better than UVA
+##Maybe look at "Something" else, beacuse this one thing that we've looked at was not done through a controlled experiment
+
+uvamcv <- uva$Kidney[-25]-mcv$Kidney[-25]
+
+plot( uvamcv~uva$Year[-25], xlim = c(1988, 2013), type = "l", xlab = "Years", ylab = "No. of Kidney", main = "Predicted Difference Between UVA and MCV Kidney Transplants", ylim =c(-80,30))
+#Bootstrapped predictions
+points(2012, uvamcv.boot$t0[1], pch = 19)
+segments(2012, uvamcv.boot$t0, 2012, uvamcv.ci$percent[4], lty = "dashed" )
+segments(2012, uvamcv.boot$t0, 2012, uvamcv.ci$percent[5], lty = "dashed" )
+#Simulation predictions
+points(2012.5, median(uvamcv.sim$t), pch = 17)
+segments(2012.5, median(uvamcv.sim$t), 2012.5, uvamcv.sim.ci$percent[4], lty = "dashed" )
+segments(2012.5, median(uvamcv.sim$t), 2012.5, uvamcv.sim.ci$percent[5], lty = "dashed" )
+
+abline(h = 0)
+points(2011.5, uva$Kidney[25]-mcv$Kidney[25]) # Current value
+
+legend(1990,-40, legend = c("Bootstrap", "Current", "Simulation"), pch = c(19, 1, 17))
+
+#*********************************************
+#	
+#		Plotting Liver Transplants
+#
+#*********************************************
+
+# Region plot
+
+region.plot(cbind(r11xplant$Liver[-25], r11donor$Liver[-25], uva$Liver[-25], unc$Liver[-25], mcv$Liver[-25], duke$Liver[-25]),Year = seq(1988,2011), title = "Liver Transplants")
+
+# Center plot
+center.plot(cbind(uva$Liver[-25], unc$Liver[-25], mcv$Liver[-25], duke$Liver[-25]), Year = seq(1988,2011), title = "Liver Transplants")
+
+t.test(uva$Liver[1:17], uva$Liver[18:24])
+
+par(mfrow = c(1,2))
+acf(uva$Liver)
+pacf(uva$Liver)
+par(mfrow = c(1,1))
+
+uva.arma <- auto.arima(uva$Liver[-25])
+
+uva.arma 
+
+par(mfrow = c(1,2))
+acf(uva.arma$resid)
+pacf(uva.arma$resid)
+par(mfrow = c(1,1))
+
+plot(1988:2011,uva.arma$resid, type = "l", xlab = "Years", ylab = "Residuals", main = "UVA ARMA Model Residuals")
+
+t.test(uva.arma$resid[1:17], uva.arma$resid[18:25])
+
+plot(seq(1988,2011), uva$Liver[-25], type = "l", col = "orange", ylim = c(min(mcv$Liver),max(uva$Liver)), xlab = "Years", ylab = "Transplants")
+lines(seq(1988,2011), mcv$Liver[-25], col = "black")
+lines(seq(1988,2011), duke$Liver[-25], col = "blue3")
+
+legend(1990,85, legend = c("UVA", "MCV", "Duke"), col = c("orange", "black", "blue3"), lwd = 2)
+
+# Linear Model of Liver transplants at UVA
+
+uva.Liv <- lm(uva$Liver[-25]~r11donor$Liver[-25])
+
+summary(uva.Liv)
+
+# diagnostics
+
+par(mfrow = c(2,2))
+plot(uva.Liv)
+par(mfrow = c(1,1))
+
+par(mfrow = c(1,2))
+acf(uva.Liv$residuals)
+pacf(uva.Liv$residuals)
+par(mfrow = c(1,1))
+
+boxcox(uva.Liv)
+
+##Starting a Roanoke Center
+Roan <- c(rep(0, 17), rep(1, 7))
+
+uva.liv2 <- lm(uva$Liver[-25]~Roan + r11donor$Liver[-25])
+
+summary(uva.liv2)
+
+par(mfrow = c(2,2))
+plot(uva.liv2)
+par(mfrow = c(1,1))
+
+##Check for Serial Correlation ##Yes, serial correlation
+par(mfrow = c(1,2))
+acf(uva.liv2$residuals)
+pacf(uva.liv2$residuals)
+par(mfrow = c(1,1))
+
+# An AR time series model for the correlated residuals
+
+uvaliv.ar <- ar(uva.liv2$resid)
+uvaliv.ar
+plot(uvaliv.ar$aic, type = "h", ylab = "AIC")
+
+# Model with AR(2)
+
+uva.liv3 <- lm(uva$Liver[3:24]~Roan[3:24] + r11donor$Liver[3:24]+uva.liv2$resid[1:22]+uva.liv2$resid[2:23])
+
+summary(uva.liv3)
+
+##Getting a Roanoke Center adds only about 33.69 transplants
+par(mfrow = c(2,2))
+plot(uva.liv3)
+par(mfrow = c(1,1))
+
+
+par(mfrow = c(1,2))
+acf(uva.liv3$resid, main = "ACF for Resid from RS2")
+pacf(uva.liv3$resid, main = "PACF for Resid from RS2")
+par(mfrow = c(1,1))
+
+# Get the fitted values from the regression model
+uva.fit <- fitted(uva.liv3)
+# Get the residuals from the regression model
+uva.le <- residuals(uva.liv3)
+# Get the regression model
+uva.mod <- model.matrix(uva.liv3)
+# Use the RTSB function to obtain the bootstrap
+uva.liv.boot <- RTSB(uva$Liver[3:24], Roan[3:24], uva.fit, uva.le, uva.mod,2000)
+# The estimates
+uva.liv.boot
+# Plot the results for the coeffiecient for the center
+plot(uva.liv.boot, index = 2)
+
+boot.ci(uva.liv.boot, index = 2)
+
+# What do we conclude about the Roanoke Center?
+
+#*********************************************
+#
+# Poisson Model for Liver Transplants
+#
+#*********************************************
+
+hist(uva$Liver, breaks = 20)
+
+rug(uva$Liver)
+
+#Without time series
+
+ldf = data.frame(UVAL = uva$Liver[1:24], R11D = r11donor$Liver[1:24])
+
+uva.liv.glm <- glm(UVAL~., data = ldf, family = poisson)
+
+summary(uva.liv.glm)
+
+# Model utility test
+
+uva.liv.null <- glm(UVAL~1, data = ldf, family = poisson)
+
+anova(uva.liv.null, uva.liv.glm, test= "Chi")
+
+# check dispersion
+
+sum(resid(uva.liv.glm, type = "pearson")^2/uva.liv.glm$df.residual) ##Clearly over-dispersed
+
+# Quasi-poisson model
+
+uva.liv.glm2 <- glm(uva$Liver~r11donor$Liver, family = quasipoisson)
+
+summary(uva.liv.glm2)
+
+par(mfrow = c(2,2))
+plot(uva.liv.glm2)
+par(mfrow = c(1,1))
+
+##Now put in auto-regressive model
+# Look at the time series
+
+uva.liv.res <- residuals(uva.liv.glm2, type = "pearson")
+
+par(mfrow = c(1,2))
+acf(uva.liv.res)
+pacf(uva.liv.res)
+par(mfrow = c(1,1))
+
+# Model with time series component
+# Notice, this is not the residuals but lagged values of the series
+
+ldf = data.frame(UVAL = uva$Liver[2:24], R11D = r11donor$Liver[2:24], LUVAL = uva$Liver[1:23])
+
+uva.liv.glm3 <- glm(UVAL~., data = ldf, family = poisson)
+
+# Model utility test
+
+uva.liv.null <- glm(UVAL~1, data = ldf, family =poisson)
+
+anova(uva.liv.null, uva.liv.glm3, test= "Chi")
+
+summary(uva.liv.glm3)
+
+par(mfrow = c(2,2))
+plot(uva.liv.glm3)
+par(mfrow = c(1,1))
+
+# Now add the Roanoke Center to the Model
+
+ldf = data.frame(UVAL = uva$Liver[2:24], R11D = r11donor$Liver[2:24], LUVAL = uva$Liver[1:23], Roan = Roan[-1])
+
+uva.liv.glm4 <- glm(UVAL~., data = ldf, family = poisson)
+
+summary(uva.liv.glm4)
+
+# Model utility test
+
+uva.liv.null <- glm(UVAL~1, data = ldf, family = poisson)
+
+anova(uva.liv.null, uva.liv.glm4, test= "Chi")
+
+uva.liv.res <- residuals(uva.liv.glm4, type = "pearson")
+
+par(mfrow = c(1,2))
+acf(uva.liv.res)
+pacf(uva.liv.res)
+par(mfrow = c(1,1))
+
+#Test of Roanoke center
+
+uva.liv.nRoan <- glm(UVAL~., data = ldf[,-4], family = poisson)
+
+anova(uva.liv.nRoan, uva.liv.glm4, test = "Chi") ##Build because
+
+#*********************************************
+#
+# Poisson Model for Kidney Transplants
+#
+#*********************************************
+
+hist(uva$Kidney, breaks = 20)
+
+rug(uva$Kidney)
+
+#Without time series
+UVAK = uva$Kidney[1:24]
+kdf = data.frame(UVAK = uva$Kidney[1:24], R11D = r11donor$Kidney[1:24])
+
+uva.kid.glm <- glm(UVAK~., data = kdf, family = poisson)
+
+summary(uva.kid.glm)
+
+# Model utility test
+
+uva.kid.null <- glm(UVAK~1, data = kdf, family = poisson)
+
+anova(uva.kid.null, uva.kid.glm2, test= "Chi")
+
+# check dispersion
+
+sum(resid(uva.kid.glm, type = "pearson")^2/uva.kid.glm$df.residual) ##Clearly over-dispersed
+
+# Quasi-poisson model
+
+uva.kid.glm2 <- glm(uva$Kidney~r11donor$Kidney, family = quasipoisson)
+
+summary(uva.kid.glm2)
+
+par(mfrow = c(2,2))
+plot(uva.kid.glm2)
+par(mfrow = c(1,1))
+
+##Now put in auto-regressive model
+# Look at the time series
+
+uva.kid.res <- residuals(uva.kid.null, type = "pearson")
+
+par(mfrow = c(1,2))
+acf(uva.kid.res)
+pacf(uva.kid.res)
+par(mfrow = c(1,1))
+
+# Model with time series component
+# Notice, this is not the residuals but lagged values of the series
+
+kdf = data.frame(UVAK = uva$Kidney[2:24], R11D = r11donor$Kidney[2:24], KUVAK = uva$Kidney[1:23])
+
+uva.kid.glm3 <- glm(UVAK~., data = kdf, family = poisson)
+
+# Model utility test
+
+uva.kid.null <- glm(UVAK~1, data = kdf, family = poisson)
+
+anova(uva.kid.null, uva.kid.glm3, test= "Chi")
+
+summary(uva.kid.glm3)
+
+par(mfrow = c(2,2))
+plot(uva.kid.glm3)
+par(mfrow = c(1,1))
+
+# Now add the Roanoke Center to the Model
+
+kdf = data.frame(UVAK = uva$Kidney[2:24], R11D = r11donor$Kidney[2:24], KUVAK = uva$Kidney[1:23], Roan = Roan[-1])
+
+uva.kid.glm4 <- glm(UVAK~., data = kdf, family = poisson)
+
+summary(uva.kid.glm4)
+
+# Model utility test
+
+uva.kid.null <- glm(UVAK~1, data = kdf, family = poisson)
+
+anova(uva.kid.null, uva.kid.glm4, test= "Chi")
+
+uva.kid.res <- residuals(uva.kid.glm4, type = "pearson")
+
+par(mfrow = c(1,2))
+acf(uva.kid.res)
+pacf(uva.kid.res)
+par(mfrow = c(1,1))
+
+#Test of Roanoke center
+
+uva.kid.nRoan <- glm(UVAK~., data = kdf[,-4], family = poisson)
+
+anova(uva.kid.nRoan, uva.kid.glm4, test = "Chi") 
+
