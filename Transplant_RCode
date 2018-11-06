@@ -93,12 +93,6 @@ sum(unc$Kidney[14:24])
 sum(mcv$Kidney[14:24])
 sum(duke$Kidney[14:24])
 #Nov 12
-#***************************************************************
-#
-#  	  Transplant Center 
-#	  Bootstrapping 1
-#
-#***************************************************************
 
 
 #***************************************************************
@@ -226,7 +220,7 @@ boot.ci(bs.kid.diff2,0.95,type=c('bca','perc'))
 
 #***************************************************************
 #
-# Part 2- Bootstrap Regression and Time Series
+# Bootstrap Regression and Time Series
 #
 #***************************************************************
 
@@ -296,7 +290,6 @@ par(mfrow = c(1,1))
 #  Bootstrapping TS
 
 ##  Evaluating residual correlation from the model uva.kid.lm
-##  Hint: use the acf() and pcf()
 acf(uva.ke)
 pacf(uva.ke)
 
@@ -304,7 +297,6 @@ pacf(uva.ke)
 ##  Fit an ar model to the residuals using the yule-walker method
 diff.ar <- ar(uva.kid.lm$residuals, method = "yule-walker") 
 
-##  How many autoregressive terms are needed?
 # 2 autogregressive terms
 
 
@@ -325,16 +317,13 @@ uva.kid.boot.fit <- fitted(uva.kid.lm2)
 uva.kid.boot.re<-residuals(uva.kid.lm2)
 
 
-##  Get the regression model, store in uva.mod2
+##  Get the regression model
 uva.mod2<-model.matrix(uva.kid.lm2)
 
 ##  Use the RTSB function as before on the new model to obtain the bootstrap 
 ##	distribution for the coefficients. This may take a few minutes.
 ##	Be patient.	Call it uva.kid.boot2
 uva.kid.boot2 <- RTSB(uva$Kidney[3:24], r11donor$Kidney[3:24], uva.kid.boot.fit, uva.kid.boot.re, uva.mod2,2000)
-
-##  What are the estimates in uva.kid.boot2?
-uva.kid.boot2
 
 ##  Plot the results for the coeffiecient for region 11 donors
 plot(uva.kid.boot2, index = 2)	
@@ -343,27 +332,7 @@ plot(uva.kid.boot2, index = 2)
 plot(uva.kid.boot2, index = 3)
 plot(uva.kid.boot2, index = 4)
 
-###NOV 19###
-#Bootstrapping used when you don't have enough data, or have a weird distribution
-#Can bootstrap in two ways: observations or residuals
-#Goal: increase number of transplants at UVA
-#Ethnicity, etc. are factors
-
-#***************************************************************
-#
-#      Lecture 22: Simulation & Bootstrapping
-#     	 A Case Study: Transplant Center
-#   		   
-#***************************************************************
-
-
-#***************************************************************
-#
-# Part 1: Basic Statistics (15 mins)
-#
-#***************************************************************
-
-#Step 1.1 Get the distribution of uva$Liver, uva$Liver_DD, uva$Liver_LD. What do you observe? On average, how many liver transplants are performed at UVa per year? What about DD liver transplants and LD liver transplants?
+# Get the distribution of uva$Liver, uva$Liver_DD, uva$Liver_LD
 mean(uva$Liver) #46 per year
 hist(uva$Liver)
 mean(uva$Liver_DD) #43 per year
@@ -372,7 +341,7 @@ mean(uva$Liver_LD) #3 per year
 hist(uva$Liver_LD)
 
 
-#Step 1.2 Get the distribution of r11donor$Liver, r11donor$Liver_DD, r11donor$Liver_LD. What do you observe? On average, how many liver donors are there in R11 per year? What about DD liver donors and LD liver donors?
+# Get the distribution of r11donor$Liver, r11donor$Liver_DD, r11donor$Liver_LD
 par(mfrow = c(1,3))
 hist(r11donor$Liver)
 mean(r11donor$Liver) #534 per year
@@ -391,7 +360,7 @@ hist(r11donor$Kidney_LD)
 mean(r11donor$Kidney_LD) #13 per year
 par(mfrow = c(1,1))
 
-#Step 1.3 In step 1.1, we get the mean of uva$Liver_DD and uva$Liver_LD. What are the standard errors of the means? What're the 95% confidence intervals? Use bootstrapping to answer this question.
+# Get the mean of uva$Liver_DD and uva$Liver_LD
 bs.mean<-function(x,i)
 {
   return(mean(x[i]))
@@ -421,7 +390,7 @@ boot.ci(boot.uva.liver.diff, 0.95, type=c('bca','perc')) #Interval does not incl
 
 
 
-#Step 1.5 Get the scatter plot matrix with the above 6 variables. Describe what you observe. You can use either uva.pairs() {source("SPM_Panel.R")} or pairs().
+# Get the scatter plot matrix with the above 6 variables
 source("SPM_Panel.R")
 
 kidstuff<-data.frame(uva$Kidney, mcv$Kidney, duke$Kidney, unc$Kidney, r11donor$Kidney)
@@ -445,18 +414,18 @@ boot.ci(boot.centers.kidney.diff, 0.95, type=c('bca','perc')) #A significant dif
 
 #***************************************************************
 #
-# Part 2: Linear Regression Models (10 mins)
+# Linear Regression Models
 #
 #***************************************************************
-#Step 2.1 Build a linear model: uva$Liver=b0+b1*r11donor$Liver+e. Call it uva.liver.lm.
-#   	   Analyze the result: R^2, model utility test, t-tests, etc.
+# Build a linear model: uva$Liver=b0+b1*r11donor$Liver+e. Call it uva.liver.lm.
+
 uva.liver.lm<-lm(uva$Liver[-25]~r11donor$Liver[-25])
 summary(uva.liver.lm) #Adj R^2 is 0.3, predictor is significant (0.0033), p-value is 0.0033, significant model
 
-#Step 2.2 Generate the diagnostic plots. Do you see any problem?
-plot(uva.liver.lm) #QQ Plot is wack
+# Generate the diagnostic plots
+plot(uva.liver.lm) #QQ Plot no good
 
-#Step 2.3 Estimate the model with bootstrapping (by residuals). Is b1 significant?
+# Estimate the model with bootstrapping (by residuals)
 #    Get the fitted values from the regression model
 liver.fit<-fitted(uva.liver.lm)
 #    Get the residuals from the regression model
@@ -475,7 +444,6 @@ plot(uva.liver.boot, index=2) #normal around 0.06 mean
 AIC(uva.liver.lm)
 
 
-#Step 2.4* What about MCV? Repeat the above steps and compare the coefficients. 
 mcv.liver.lm<-lm(mcv$Liver[-25]~r11donor$Liver[-25])
 summary(mcv.liver.lm) #Adj R^2 is 0.4374, predictor is significant (0.000259), p-value is 0.0002, significant model
 plot(mcv.liver.lm) #residuals vs fitted has pattern, QQ plot is bad at top quantile
